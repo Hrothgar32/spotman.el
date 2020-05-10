@@ -3,7 +3,6 @@
 
 1.  [Introduction](#orga3eecbd)
 
-\#+ TITLE: Spotman.el
 
 
 <a id="orga3eecbd"></a>
