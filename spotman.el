@@ -37,7 +37,7 @@
 )
 
 (setq spotify-login-link "http://127.0.0.1:8888/login")
-(setq spotify-search-link "https://api.spotify.com/v1/search?type=track&q=")
+(setq spotify-refresh-token-link "https://accounts.spotify.com/api/token")
 (setq spotify-pause-link "https://api.spotify.com/v1/me/player/pause")
 (setq spotify-play-link  "https://api.spotify.com/v1/me/player/play")
 (setq spotify-next-link  "https://api.spotify.com/v1/me/player/next")
@@ -49,6 +49,8 @@
 
 (setq standard-headers (list (cons "Authorization" (concat "Bearer " access-modem))
                              (cons "Content-Length" "0")))
+(setq refresh-headers (list (cons "Authorization" "Basic YWM4ZWIxZjhmOWI0NGEyOTlmMzQ0MGU3YTk3ZjJiZDQ6MjFlMjhkNGFjNmEyNDVkYWFhYzQ3NjA0NGQ2Yzk0NTE=")
+                            (cons "Content-Type" "application/x-www-form-urlencoded")))
 
 (setq refresh-token "AQCJxdgHCGNPH59h0xfB5kPQV0TBhQB8t3ojIwwhxQ6xdmj9ueBn7BhDwTC0apMU5mMjb8a0IoK33mlKrQ5bOQHl9DE3Tf8i3oet4DKSUdcdnz0GH5fQRkNt1aWSc7FSxoI")
 (defun my-http-handle-authentication (_proxy)
@@ -64,13 +66,13 @@ HEADERS -- Spotify header array.
 QUERY-STRING -- For searches.
 BODY -- Hey."
   (if body
-    (defvar request-body
+    (setq request-body
       (mapconcat (lambda (arg)
                     (concat (url-hexify-string (car arg))
                             "="
                             (url-hexify-string (cdr arg))))
                 body "&"))
-    (defvar request-body nil))
+    (setq request-body nil))
   (let* ((url-request-method method)
         (url-request-extra-headers headers)
         (url-request-data request-body)
@@ -82,19 +84,53 @@ BODY -- Hey."
                          (search-forward-regexp "{")))
         (json-data (json-read-from-string (substring contents (- json-location
                                                                  2)))))
-    json-data
-    )
+    (if (string= (symbol-name(car(car json-data))) "error")
+        (progn
+          (aio-await (spotify-get-access-token))
+          (spotify-api-call url method standard-headers body query-string))
+      json-data)
+    ))
+
+(aio-defun spotify-next ()
+  "Get next track."
+  (interactive)
+  (aio-await(spotify-api-call spotify-next-link "POST" standard-headers))
   )
 
-(aio-defun test()
-  (let* ((result (aio-await (api-call spotify-search-link "GET" standard-headers
-                                      nil "Tamacun")))
-         (first-stuff (symbol-name(car(car result)))))
-    (if (string-equal first-stuff "error")
-        (progn
-          (refresh-spotify-token (list (cons "grant_type" "refresh_token")
-                                       (cons "refresh_token" refresh-token))))
-      )))
+(aio-defun spotify-pause ()
+  "Pause Spotify playback."
+  (interactive)
+  (aio-await(spotify-api-call spotify-pause-link "PUT" standard-headers))
+  )
+
+(aio-defun spotify-play ()
+  "Resume Spotify playback."
+  (interactive)
+  (aio-await(spotify-api-call spotify-play-link "PUT" standard-headers))
+  )
+
+(aio-defun spotify-previous()
+  "Get previous track."
+  (interactive)
+  (aio-await(spotify-api-call spotify-previous-link "POST" standard-headers))
+  )
+
+(aio-defun spotify-get-access-token ()
+  "Get back the access token"
+  (let* ((json-data (aio-await (spotify-api-call spotify-refresh-token-link "POST"
+                                                refresh-headers (list (cons "grant_type" "refresh_token")
+                                                                      (cons "refresh_token" refresh-token)))))
+         )
+    (setq standard-headers (list (cons "Authorization" (concat "Bearer " (cdr(car json-data))))
+                                 (cons "Content-Length" "0")))
+    ))
+
+(aio-defun spotify-search (search-string)
+  "Search for something on Spotify.
+SEARCH-STRING -- self explained."
+  (interactive "sEnter search term: ")
+  (let* ((result (aio-await (spotify-api-call spotify-search-link "GET" standard-headers nil search-string))))
+    (print "Success!")))
 
 (defun login ()
   "Arrange login to Spotify."
@@ -109,19 +145,6 @@ BODY -- Hey."
   "Start the Python server for Spotman."
    (start-process "flask" "flask" "python" "/home/hrothgar32/Documents/spotman.el/python-server/server.py")
    )
-
-(defun eval-api-response (status)
-  "Evaluate the response of the Spotify API.
-STATUS"
-  (setq response-data (buffer-string))
-  (setq json-location (search-forward-regexp "{"))
-  (setq json-data (json-read-from-string (substring response-data (- json-location 2)))))
-
-(defun set-new-token (status)
-  "Replaces the expired access token."
-  (setq access-token (cdr(car(eval-api-response status))))
-  (setq standard-headers (list (cons "Authorization" (concat "Bearer " access-token))
-                             (cons "Content-Length" "0"))))
 
 (setq standard-headers (list (cons "Authorization" (concat "Bearer " "incorrect token"))
                             (cons "Content-Length" "0")))
