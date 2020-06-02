@@ -44,6 +44,7 @@
 (setq spotify-previous-link  "https://api.spotify.com/v1/me/player/previous")
 (setq spotify-token-link  "https://accounts.spotify.com/api/token")
 (setq spotify-search-link  "https://api.spotify.com/v1/search?type=album,track,artist&q=")
+(setq spotify-queue-link "https://api.spotify.com/v1/me/player/queue?uri=")
 
 (setq access-modem (cdr (car spotify-tokens)))
 
@@ -115,6 +116,17 @@ BODY -- Hey."
   (aio-await(spotify-api-call spotify-previous-link "POST" standard-headers))
   )
 
+(aio-defun spotify-put-track (string)
+  "Put a track onto the Spotify queue."
+  (interactive "sEnter track name: ")
+  (let* ((result (aio-await (spotify-api-call "https://api.spotify.com/v1/search?type=track&q=" "GET" standard-headers nil string)))
+         (track-vector(cdr (nth 1 (cdr (car result)))))
+         (first-song-uri (nth 16(nth 0(append track-vector nil))))
+         )
+    (aio-await(spotify-api-call spotify-queue-link "POST" standard-headers nil (cdr first-song-uri)))
+    )
+  )
+
 (aio-defun spotify-get-access-token ()
   "Get back the access token"
   (let* ((json-data (aio-await (spotify-api-call spotify-refresh-token-link "POST"
@@ -130,7 +142,7 @@ BODY -- Hey."
 SEARCH-STRING -- self explained."
   (interactive "sEnter search term: ")
   (let* ((result (aio-await (spotify-api-call spotify-search-link "GET" standard-headers nil search-string))))
-    (print "Success!")))
+    (print result)))
 
 (defun login ()
   "Arrange login to Spotify."
