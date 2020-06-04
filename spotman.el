@@ -46,17 +46,15 @@
 (setq spotify-search-link  "https://api.spotify.com/v1/search?type=album,track,artist&q=")
 (setq spotify-queue-link "https://api.spotify.com/v1/me/player/queue?uri=")
 
-(setq access-modem (cdr (car spotify-tokens)))
-
-(setq standard-headers (list (cons "Authorization" (concat "Bearer " access-modem))
-                             (cons "Content-Length" "0")))
 (setq refresh-headers (list (cons "Authorization" "Basic YWM4ZWIxZjhmOWI0NGEyOTlmMzQ0MGU3YTk3ZjJiZDQ6MjFlMjhkNGFjNmEyNDVkYWFhYzQ3NjA0NGQ2Yzk0NTE=")
                             (cons "Content-Type" "application/x-www-form-urlencoded")))
 
 (setq refresh-token "AQCJxdgHCGNPH59h0xfB5kPQV0TBhQB8t3ojIwwhxQ6xdmj9ueBn7BhDwTC0apMU5mMjb8a0IoK33mlKrQ5bOQHl9DE3Tf8i3oet4DKSUdcdnz0GH5fQRkNt1aWSc7FSxoI")
+
 (defun my-http-handle-authentication (_proxy)
   "Replacement function for `url-http-handle-authentication'."
   t)
+
 (advice-add 'url-http-handle-authentication :override #'my-http-handle-authentication)
 
 (aio-defun spotify-api-call(url method headers &optional body query-string)
@@ -141,8 +139,20 @@ BODY -- Hey."
   "Search for something on Spotify.
 SEARCH-STRING -- self explained."
   (interactive "sEnter search term: ")
-  (let* ((result (aio-await (spotify-api-call spotify-search-link "GET" standard-headers nil search-string))))
-    (print result)))
+  (let* ((result (aio-await (spotify-api-call "https://api.spotify.com/v1/search?type=track&q="  "GET" standard-headers nil search-string)))
+         (buffer (create-file-buffer "Radio-Star"))
+         (tracks (append (cdr (nth 1 (cdr (car result)))) nil))
+         )
+    (print "So this is the stuff:" (get-buffer buffer))
+    (setq bestes-count 0)
+    (setq bestes (concat(cdr(nth 3(nth 0(append(cdr(nth 1(nth bestes-count tracks))) nil)))) " - " (cdr (nth 11 (nth bestes-count tracks)))))
+    (setq stuffs tracks)
+    (while (not(eq bestes-count 10))
+      (print bestes (get-buffer buffer))
+      (setq bestes (concat(cdr(nth 3(nth 0(append(cdr(nth 1(nth bestes-count tracks))) nil)))) " - " (cdr (nth 11 (nth bestes-count tracks)))))
+      (setq bestes-count (+ bestes-count 1)))
+    (pop-to-buffer-same-window buffer))
+  )
 
 (defun login ()
   "Arrange login to Spotify."
