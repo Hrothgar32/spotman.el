@@ -39,12 +39,13 @@
 (setq spotify-login-link "http://127.0.0.1:8888/login")
 (setq spotify-refresh-token-link "https://accounts.spotify.com/api/token")
 (setq spotify-pause-link "https://api.spotify.com/v1/me/player/pause")
-(setq spotify-play-link  "https://api.spotify.com/v1/me/player/play")
+(setq spotify-play-link  "https://api.spotify.com/v1/me/player/play?device_id=9ecbb6dad08efb4c16fba336aa064d519955e3c2")
 (setq spotify-next-link  "https://api.spotify.com/v1/me/player/next")
 (setq spotify-previous-link  "https://api.spotify.com/v1/me/player/previous")
 (setq spotify-token-link  "https://accounts.spotify.com/api/token")
 (setq spotify-search-link  "https://api.spotify.com/v1/search?type=album,track,artist&q=")
 (setq spotify-queue-link "https://api.spotify.com/v1/me/player/queue?uri=")
+(setq spotify-currently-playing "https://api.spotify.com/v1/me/player/currently-playing?market=RO")
 
 (setq refresh-headers (list (cons "Authorization" "Basic YWM4ZWIxZjhmOWI0NGEyOTlmMzQ0MGU3YTk3ZjJiZDQ6MjFlMjhkNGFjNmEyNDVkYWFhYzQ3NjA0NGQ2Yzk0NTE=")
                             (cons "Content-Type" "application/x-www-form-urlencoded")))
@@ -153,6 +154,19 @@ SEARCH-STRING -- self explained."
       (setq bestes-count (+ bestes-count 1)))
     (pop-to-buffer-same-window buffer))
   )
+
+(aio-defun spotify-get-currently-playing ()
+  "Get the currently playing track on Spotify."
+  (let* ((response (aio-await(spotify-api-call spotify-currently-playing "GET" standard-headers)))
+         (artist-name (cdr(nth 3(car(append(cdr(nth 1(cdr(nth 3 response))))nil)))))
+         (track-name(cdr (nth 11 (cdr(nth 3 response)))))
+         (spotify-mode-stuff (concat artist-name " - " track-name)))
+    (setq spotman-modeline-string spotify-mode-stuff)
+    (message "The song playing right now: %s" (concat artist-name " - " track-name))
+    ))
+
+(aio-defun spotify-get-info()
+  (setq result (aio-await (spotify-api-call "https://api.spotify.com/v1/me/player" "GET" standard-headers))))
 
 (defun login ()
   "Arrange login to Spotify."
